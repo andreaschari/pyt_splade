@@ -4,6 +4,8 @@ assert pt.started()
 from typing import Union
 import torch
 import pandas as pd
+import more_itertools
+import numpy as np
 
 def _matchop(t, w):
     import base64
@@ -111,6 +113,13 @@ class SpladeFactory():
             rtr['query'] = new_queries
             return rtr
         return pt.apply.generic(_transform_query)
+
+    def text_scorer(self, verbose=False, batch_size=16) -> pt.Transformer:
+        '''
+        Returns a transformer that uses SPLADE model to score the *text* of documents
+        '''
+        # TODO: write scorer function
+
     
 
 def toks2doc(mult=100):
