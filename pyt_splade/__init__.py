@@ -119,8 +119,39 @@ class SpladeFactory():
         Returns a transformer that uses SPLADE model to score the *text* of documents
         '''
         # TODO: write scorer function
-
-    
+        def _text_scorer(df):
+            scores = []
+            it = df[['query', 'text']].itertuples(index=False)
+            if verbose:
+                it = pt.tqdm(it, total=len(df), unit='record', desc='SPLADE Scoring')
+            with torch.no_grad():
+                for chunk in more_itertools.chunked(it, batch_size):
+                    queries, texts = map(list, zip(*chunk))
+                    query_reps = self.tokenizer(
+                        queries,
+                        add_special_tokens=True,
+                        padding="longest",  # pad to max sequence length in batch
+                        truncation="longest_first",  # truncates to max model length,
+                        max_length=self.max_length,
+                        return_attention_mask=True,
+                        return_tensors="pt",
+                    ).to(self.device)
+                    doc_reps = self.tokenizer(
+                        texts,
+                        add_special_tokens=True,
+                        padding="longest",  # pad to max sequence length in batch
+                        truncation="longest_first",  # truncates to max model length,
+                        max_length=self.max_length,
+                        return_attention_mask=True,
+                        return_tensors="pt",
+                    ).to(self.device)
+                    scores.append(self.model(q_kwargs=query_reps, d_kwargs=doc_reps)['score'].cpu().detach().numpy())
+                    
+            res = df.assign(score=np.concatenate(scores))
+            pt.model.add_ranks(res)
+            res = res.sort_values(['qid', 'rank'])
+            return res
+        return pt.apply.generic(_text_scorer)
 
 def toks2doc(mult=100):
     
